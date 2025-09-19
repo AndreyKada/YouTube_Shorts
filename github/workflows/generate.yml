@@ -1,0 +1,76 @@
+name: Generate YouTube Shorts
+
+on:
+  schedule:
+    # Каждые 6 часов (0:00, 6:00, 12:00, 18:00 UTC)
+    - cron: '0 */6 * * *'
+  workflow_dispatch:  # Позволяет запустить вручную
+
+env:
+  PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+  FREESOUND_API_KEY: ${{ secrets.FREESOUND_API_KEY }}
+
+jobs:
+  generate-video:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30  # Ограничение времени выполнения
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+          
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ffmpeg
+        
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Create output directories
+      run: |
+        mkdir -p downloads/videos
+        mkdir -p downloads/audio
+        mkdir -p output
+        
+    - name: Generate video
+      run: |
+        python generator.py
+        
+    - name: List generated files
+      run: |
+        echo "Generated files:"
+        ls -la output/
+        
+    - name: Upload generated videos
+      uses: actions/upload-artifact@v4
+      if: always()  # Загружать даже если есть ошибки
+      with:
+        name: youtube-shorts-${{ github.run_number }}
+        path: output/*.mp4
+        retention-days: 7  # Хранить 7 дней
+        
+    - name: Cleanup temp files
+      if: always()
+      run: |
+        rm -rf downloads/
+        
+    - name: Log completion
+      run: |
+        echo "Video generation completed at $(date)"
+        echo "Workflow run number: ${{ github.run_number }}"
