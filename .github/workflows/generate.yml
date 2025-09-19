@@ -2,7 +2,7 @@ name: Generate YouTube Shorts
 
 on:
   schedule:
-    - cron: '0 */4 * * *'
+    - cron: '0 5,11,16,18 * * *'
   workflow_dispatch:
 
 env:
